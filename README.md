@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ¿Qué cocino hoy?
 
-## Getting Started
+Aplicación web para guardar recetas, gestionar ingredientes de la despensa y
+ver qué recetas puedes preparar según los ingredientes disponibles. Usa
+Next.js, TypeScript, Tailwind CSS y Supabase.
 
-First, run the development server:
+## URL pública
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+[https://prueba-tecnica-eight-inky.vercel.app/](https://prueba-tecnica-eight-inky.vercel.app/)
+
+
+## Flujo de trabajo
+
+```text
+Orquestador → Develop → Testing → (fallos) → Develop → PASS
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Guías del proyecto
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- [CLAUDE.md](./CLAUDE.md)
+- [Agente Develop](./.claude/agents/develop.md)
+- [Agente Testing](./.claude/agents/testing.md)
+- [Registro de pruebas](./docs/testing-log.md)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Ejecución local
 
-## Learn More
+Requisitos: Node.js y npm.
 
-To learn more about Next.js, take a look at the following resources:
+1. Instala dependencias:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   npm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Crea `.env.local` a partir de `.env.example` y configura las variables
+   requeridas:
 
-## Deploy on Vercel
+   ```text
+   NEXT_PUBLIC_SUPABASE_URL=
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   Usa la URL del proyecto Supabase y su clave pública `anon`. No pongas claves
+   `service_role` ni contraseñas en archivos versionados.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. Inicia el servidor de desarrollo:
+
+   ```bash
+   npm run dev
+   ```
+
+4. Abre [http://localhost:3000](http://localhost:3000).
+
+Comprobaciones disponibles:
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
