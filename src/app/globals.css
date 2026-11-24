@@ -21,7 +21,18 @@
 
 body {
   margin: 0;
-  background: var(--background);
+  min-height: 100%;
+  background:
+    radial-gradient(ellipse at top, rgb(254 243 199 / 72%), transparent 52%),
+    var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #b45309;
+  outline-offset: 3px;
 }

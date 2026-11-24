@@ -2,6 +2,7 @@
 
 import type { FormEvent, Dispatch, SetStateAction } from "react";
 import { useEffect, useState } from "react";
+import { useDialogFocus } from "@/components/use-dialog-focus";
 import {
   addPantryIngredient,
   deletePantryIngredient,
@@ -78,7 +79,7 @@ function PantryScreenForUser({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
 
   return (
-    <section aria-labelledby="pantry-heading" className="mt-8">
+    <section aria-labelledby="pantry-heading" className="mt-6 rounded-3xl border border-amber-200/70 bg-white/75 p-5 shadow-sm sm:mt-8 sm:p-7">
       <PantryHeading />
       <PantryForm
         ingredient={ingredient}
@@ -116,7 +117,7 @@ function PantryHeading() {
       <p className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">
         Lo que tienes en casa
       </p>
-      <h2 id="pantry-heading" className="mt-1 text-3xl font-bold text-stone-950">
+      <h2 id="pantry-heading" className="mt-1 text-3xl font-bold tracking-tight text-stone-950">
         Mi despensa
       </h2>
     </header>
@@ -221,8 +222,8 @@ function PantryForm({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row">
-      <div className="flex-1">
+    <form onSubmit={onSubmit} className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
+      <div className="min-w-0 flex-1">
         <label htmlFor="pantry-ingredient" className="mb-1.5 block text-sm font-semibold text-stone-800">
           Ingrediente
         </label>
@@ -232,14 +233,14 @@ function PantryForm({
           onChange={(event) => onChange(event.target.value)}
           disabled={busy}
           maxLength={100}
-          className="min-h-11 w-full rounded-xl border border-stone-300 bg-white px-3 outline-none focus:border-amber-700 focus:ring-4 focus:ring-amber-100 disabled:opacity-60"
+          className="min-h-11 w-full rounded-xl border border-stone-300 bg-white px-3 outline-none focus-visible:border-amber-700 focus-visible:ring-4 focus-visible:ring-amber-100 disabled:opacity-60"
           placeholder="Por ejemplo, tomate"
         />
       </div>
       <button
         type="submit"
         disabled={busy}
-        className="min-h-11 self-end rounded-xl bg-amber-700 px-5 py-2 font-semibold text-white hover:bg-amber-800 disabled:opacity-60 sm:mb-0"
+        className="min-h-11 w-full rounded-xl bg-amber-800 px-5 py-2 font-semibold text-white hover:bg-amber-900 disabled:opacity-60 sm:w-auto"
       >
         {busy ? "Guardando..." : "Añadir ingrediente"}
       </button>
@@ -283,9 +284,15 @@ function PantryContent({
   if (state.error?.startsWith("No se pudo cargar")) return null;
   if (state.ingredients.length === 0) {
     return (
-      <p className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-white/70 p-6 text-center text-stone-600">
-        Aún no tienes ingredientes en tu despensa.
-      </p>
+      <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 p-6 text-center">
+        <h3 className="font-semibold text-stone-900">Tu despensa está lista para empezar</h3>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-stone-700">
+          Anota los ingredientes que tienes en casa para ver qué recetas puedes preparar.
+        </p>
+        <a href="#pantry-ingredient" className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-800 px-5 py-2 font-semibold text-amber-900 transition hover:bg-amber-100">
+          Añadir primer ingrediente
+        </a>
+      </div>
     );
   }
   return (
@@ -311,7 +318,7 @@ function PantryList({
       {ingredients.map((item) => (
         <li key={item.id}>
           <div className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white p-3">
-            <span className="break-words font-medium text-stone-900">{item.ingredient}</span>
+            <span className="min-w-0 break-words font-medium text-stone-900">{item.ingredient}</span>
             <button
               type="button"
               onClick={() => onRemoveRequest(item)}
@@ -339,30 +346,52 @@ function RemovePantryConfirmation({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const dialogRef = useDialogFocus();
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-stone-950/50 p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-stone-950/55 p-3 sm:items-center sm:p-4">
       <section
+        ref={dialogRef}
+        tabIndex={-1}
+        data-focus-fallback="#pantry-ingredient"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="pantry-delete-title"
         aria-describedby="pantry-delete-description"
-        className="w-full rounded-t-3xl bg-white p-6 shadow-2xl sm:max-w-md sm:rounded-3xl"
+        className="w-full rounded-3xl bg-white p-5 shadow-2xl sm:max-w-md sm:p-7"
       >
         <h3 id="pantry-delete-title" className="text-xl font-bold text-stone-950">
           Quitar ingrediente
         </h3>
-        <p id="pantry-delete-description" className="mt-2 text-sm text-stone-600">
+        <p id="pantry-delete-description" className="mt-2 break-words text-sm text-stone-600">
           ¿Quieres quitar «{ingredient.ingredient}» de tu despensa?
         </p>
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 rounded-xl border border-stone-300 px-5 font-semibold text-stone-800">
-            Cancelar
-          </button>
-          <button type="button" onClick={onConfirm} disabled={busy} className="min-h-11 rounded-xl bg-red-700 px-5 font-semibold text-white disabled:opacity-60">
-            {busy ? "Quitando..." : "Sí, quitar"}
-          </button>
-        </div>
+        <RemovePantryActions
+          busy={busy}
+          onCancel={onCancel}
+          onConfirm={onConfirm}
+        />
       </section>
+    </div>
+  );
+}
+
+function RemovePantryActions({
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 w-full rounded-xl border border-stone-300 px-5 font-semibold text-stone-800 sm:w-auto">
+        Cancelar
+      </button>
+      <button type="button" onClick={onConfirm} disabled={busy} className="min-h-11 w-full rounded-xl bg-red-700 px-5 font-semibold text-white disabled:opacity-60 sm:w-auto">
+        {busy ? "Quitando..." : "Sí, quitar"}
+      </button>
     </div>
   );
 }

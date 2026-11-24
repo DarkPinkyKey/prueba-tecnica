@@ -164,8 +164,8 @@ export function AuthScreen() {
 
 function LoadingScreen() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
-      <p role="status" className="text-sm font-semibold text-stone-700">
+    <main className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
+      <p role="status" className="rounded-2xl border border-amber-200 bg-white/90 px-6 py-5 text-sm font-semibold text-stone-700 shadow-lg shadow-amber-950/5">
         Comprobando sesión...
       </p>
     </main>
@@ -181,13 +181,13 @@ type SignedInScreenProps = {
 
 function SignedInScreen({ session, error, loading, onSignOut }: SignedInScreenProps) {
   return (
-    <main className="min-h-screen px-4 py-8 sm:px-8 sm:py-12">
-      <div className="mx-auto w-full max-w-5xl">
-        <header className="flex flex-col gap-5 rounded-3xl border border-amber-200/70 bg-white p-6 shadow-xl shadow-amber-950/10 sm:flex-row sm:items-center sm:justify-between sm:p-8">
-          <div>
+    <main className="min-h-screen px-4 py-6 sm:px-8 sm:py-10">
+      <div className="mx-auto w-full max-w-6xl">
+        <header className="flex min-w-0 flex-col gap-5 rounded-3xl border border-amber-200/80 bg-white/95 p-5 shadow-xl shadow-amber-950/10 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div className="min-w-0">
             <BrandName />
-            <h1 className="mt-3 text-3xl font-bold text-stone-950">Sesión iniciada</h1>
-            <p className="mt-2 break-all text-stone-600">
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">Sesión iniciada</h1>
+            <p className="mt-2 break-all text-sm leading-6 text-stone-600 sm:text-base">
               Has iniciado sesión como <strong>{session.user.email}</strong>.
             </p>
           </div>
@@ -224,8 +224,8 @@ type AuthCardProps = {
 
 function AuthCard(props: AuthCardProps) {
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
-      <section className="w-full max-w-md overflow-hidden rounded-3xl border border-amber-200/70 bg-white shadow-xl shadow-amber-950/10">
+    <main className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
+      <section className="w-full max-w-md overflow-hidden rounded-3xl border border-amber-200/80 bg-white/95 shadow-2xl shadow-amber-950/10">
         <AuthHeader mode={props.mode} />
         <AuthForm {...props} />
       </section>
@@ -236,14 +236,14 @@ function AuthCard(props: AuthCardProps) {
 function AuthHeader({ mode }: { mode: AuthMode }) {
   const isLogin = mode === "login";
   return (
-    <header className="bg-amber-100 px-6 py-7 sm:px-8">
-      <p className="text-sm font-bold uppercase tracking-[0.18em] text-amber-800">
+    <header className="bg-amber-100/90 px-6 py-8 sm:px-8 sm:py-9">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-800 sm:text-sm">
         ¿Qué cocino hoy?
       </p>
-      <h1 className="mt-2 text-3xl font-bold text-stone-950">
+      <h1 className="mt-3 text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">
         {isLogin ? "Bienvenido" : "Crear cuenta"}
       </h1>
-      <p className="mt-2 text-sm text-stone-600">
+      <p className="mt-2 max-w-sm text-sm leading-6 text-stone-700">
         {isLogin
           ? "Inicia sesión para preparar tus próximas comidas."
           : "Regístrate para guardar tus recetas y tu despensa."}
@@ -289,7 +289,7 @@ function EmailField({ value, disabled, onChange }: FieldProps) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className="h-12 w-full rounded-xl border border-stone-300 bg-white px-4 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-amber-600 focus:ring-4 focus:ring-amber-100"
+        className="h-12 w-full rounded-xl border border-stone-300 bg-white px-4 text-stone-950 outline-none transition placeholder:text-stone-400 focus-visible:border-amber-700 focus-visible:ring-4 focus-visible:ring-amber-100"
         placeholder="tu@correo.com"
       />
     </div>
@@ -315,7 +315,7 @@ function PasswordField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className="h-12 w-full rounded-xl border border-stone-300 bg-white px-4 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-amber-600 focus:ring-4 focus:ring-amber-100"
+        className="h-12 w-full rounded-xl border border-stone-300 bg-white px-4 text-stone-950 outline-none transition placeholder:text-stone-400 focus-visible:border-amber-700 focus-visible:ring-4 focus-visible:ring-amber-100"
         placeholder="Mínimo 6 caracteres"
       />
     </div>
@@ -343,7 +343,7 @@ function SubmitButton({ mode, loading }: { mode: AuthMode; loading: boolean }) {
     <button
       type="submit"
       disabled={loading}
-      className="h-12 w-full rounded-xl bg-amber-700 px-5 font-semibold text-white shadow-md shadow-amber-800/20 transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
+      className="h-12 w-full rounded-xl bg-amber-800 px-5 font-semibold text-white shadow-md shadow-amber-800/20 transition hover:bg-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {loading ? "Procesando..." : isLogin ? "Iniciar sesión" : "Registrarse"}
     </button>
@@ -365,7 +365,7 @@ function ModeToggle({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="w-full text-sm font-semibold text-amber-800 hover:text-amber-950 disabled:opacity-60"
+      className="min-h-11 w-full rounded-lg px-2 text-sm font-semibold text-amber-800 hover:text-amber-950 disabled:opacity-60"
     >
       {isLogin ? "¿No tienes cuenta? Crear una cuenta" : "¿Ya tienes cuenta? Iniciar sesión"}
     </button>
@@ -378,7 +378,7 @@ function SignOutButton({ loading, onClick }: { loading: boolean; onClick: () => 
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="mt-6 h-12 w-full rounded-xl bg-stone-900 px-5 font-semibold text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60 sm:mt-0 sm:w-auto"
+      className="h-12 w-full rounded-xl bg-stone-900 px-5 font-semibold text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
     >
       {loading ? "Cerrando sesión..." : "Cerrar sesión"}
     </button>

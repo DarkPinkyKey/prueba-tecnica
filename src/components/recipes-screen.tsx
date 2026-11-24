@@ -2,6 +2,7 @@
 
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
 import { useEffect, useState } from "react";
+import { useDialogFocus } from "@/components/use-dialog-focus";
 import {
   createRecipe,
   deleteRecipe,
@@ -233,14 +234,15 @@ type WorkspaceProps = {
 };
 
 function RecipeWorkspace(props: WorkspaceProps) {
+  const openRecipeForm = () => {
+    props.setFormRecipe(null);
+    props.setFormOpen(true);
+  };
   return (
-    <section aria-labelledby="recipes-heading" className="mt-8">
-      <RecipeHeader busy={props.busy || props.state.loading} onCreate={() => {
-        props.setFormRecipe(null);
-        props.setFormOpen(true);
-      }} />
+    <section aria-labelledby="recipes-heading" className="mt-6 rounded-3xl border border-amber-200/70 bg-white/75 p-5 shadow-sm sm:mt-8 sm:p-7">
+      <RecipeHeader busy={props.busy || props.state.loading} onCreate={openRecipeForm} />
       <Notice error={props.state.error} onRetry={props.state.retry} />
-      <RecipeContent {...props} />
+      <RecipeContent {...props} onCreate={openRecipeForm} />
       <RecipeOverlays {...props} />
     </section>
   );
@@ -248,31 +250,34 @@ function RecipeWorkspace(props: WorkspaceProps) {
 
 function RecipeHeader({ busy, onCreate }: { busy: boolean; onCreate: () => void }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">
           Tu colección
         </p>
-        <h2 id="recipes-heading" className="mt-1 text-3xl font-bold text-stone-950">
+        <h2 id="recipes-heading" tabIndex={-1} className="mt-1 text-3xl font-bold tracking-tight text-stone-950">
           Mis recetas
         </h2>
       </div>
-      <button type="button" onClick={onCreate} disabled={busy} className="min-h-11 rounded-xl bg-amber-700 px-5 py-2 font-semibold text-white transition hover:bg-amber-800 disabled:opacity-60">
+      <button type="button" onClick={onCreate} disabled={busy} className="min-h-11 w-full rounded-xl bg-amber-800 px-5 py-2 font-semibold text-white transition hover:bg-amber-900 disabled:opacity-60 sm:w-auto">
         Añadir receta
       </button>
     </div>
   );
 }
 
+type RecipeContentProps = WorkspaceProps & { onCreate: () => void };
+
 function RecipeContent({
   state,
   busy,
   busyMessage,
+  onCreate,
   setFormRecipe,
   setFormOpen,
   setPendingDelete,
   actions,
-}: WorkspaceProps) {
+}: RecipeContentProps) {
   const loadingFailed = state.error?.startsWith("No se pudieron cargar") ?? false;
   return (
     <>
@@ -283,6 +288,7 @@ function RecipeContent({
         <RecipeList
           recipes={state.recipes}
           disabled={busy}
+          onCreate={onCreate}
           onEdit={(recipe) => {
             setFormRecipe(recipe);
             setFormOpen(true);
@@ -342,23 +348,20 @@ function Notice({
 function RecipeList({
   recipes,
   disabled,
+  onCreate,
   onEdit,
   onDelete,
   onFavorite,
 }: {
   recipes: Recipe[];
   disabled: boolean;
+  onCreate: () => void;
   onEdit: (recipe: Recipe) => void;
   onDelete: (recipe: Recipe) => void;
   onFavorite: (recipe: Recipe) => void;
 }) {
   if (recipes.length === 0) {
-    return (
-      <div className="mt-6 rounded-2xl border border-dashed border-amber-300 bg-white/70 p-8 text-center">
-        <h3 className="text-lg font-semibold text-stone-900">Aún no tienes recetas</h3>
-        <p className="mt-2 text-sm text-stone-600">Guarda tu primera receta para tenerla a mano.</p>
-      </div>
-    );
+    return <EmptyRecipeList disabled={disabled} onCreate={onCreate} />;
   }
   return (
     <ul className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -377,6 +380,20 @@ function RecipeList({
   );
 }
 
+function EmptyRecipeList({ disabled, onCreate }: { disabled: boolean; onCreate: () => void }) {
+  return (
+    <div className="mt-6 rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 p-6 text-center sm:p-8">
+      <h3 className="text-lg font-semibold text-stone-900">Tu colección empieza aquí</h3>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-stone-700">
+        Añade tu primera receta para guardarla y descubrir qué puedes cocinar con lo que tienes.
+      </p>
+      <button type="button" onClick={onCreate} disabled={disabled} className="mt-5 min-h-11 w-full rounded-xl bg-amber-800 px-5 py-2 font-semibold text-white transition hover:bg-amber-900 disabled:opacity-60 sm:w-auto">
+        Añadir primera receta
+      </button>
+    </div>
+  );
+}
+
 function RecipeCard({
   recipe,
   disabled,
@@ -391,7 +408,7 @@ function RecipeCard({
   onFavorite: () => void;
 }) {
   return (
-    <article className="h-full rounded-2xl border border-amber-200/80 bg-white p-5 shadow-sm">
+    <article className="h-full min-w-0 rounded-2xl border border-amber-200/80 bg-white p-5 shadow-sm">
       <RecipeCardHeading
         title={recipe.title}
         favorite={recipe.is_favorite}
@@ -417,7 +434,7 @@ function RecipeCardHeading({
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <h3 className="text-xl font-bold text-stone-950">{title}</h3>
+      <h3 className="min-w-0 break-words text-xl font-bold text-stone-950">{title}</h3>
       <button
         type="button"
         aria-label={favorite ? "Quitar de favoritas" : "Marcar como favorita"}
@@ -435,15 +452,15 @@ function RecipeCardHeading({
 function RecipeDetails({ recipe }: { recipe: Recipe }) {
   return (
     <>
-      {recipe.description && <p className="mt-2 text-sm text-stone-600">{recipe.description}</p>}
+      {recipe.description && <p className="mt-2 break-words text-sm text-stone-600">{recipe.description}</p>}
       <p className="mt-4 text-sm font-semibold text-stone-800">Ingredientes</p>
       <ul className="mt-1 list-inside list-disc text-sm text-stone-600">
         {recipe.ingredients.map((ingredient, index) => (
-          <li key={`${ingredient}-${index}`}>{ingredient}</li>
+          <li key={`${ingredient}-${index}`} className="break-words">{ingredient}</li>
         ))}
       </ul>
       {recipe.instructions && (
-        <p className="mt-4 whitespace-pre-wrap text-sm text-stone-600">{recipe.instructions}</p>
+        <p className="mt-4 break-words whitespace-pre-wrap text-sm text-stone-600">{recipe.instructions}</p>
       )}
     </>
   );
@@ -512,9 +529,10 @@ function RecipeFormDialog({
   recipe: Recipe | null;
   children: ReactNode;
 }) {
+  const dialogRef = useDialogFocus();
   return (
-    <div className="fixed inset-0 z-10 flex items-end justify-center bg-stone-950/50 p-0 sm:items-center sm:p-4">
-      <section role="dialog" aria-modal="true" aria-labelledby="recipe-form-title" className="max-h-[95vh] w-full overflow-y-auto rounded-t-3xl bg-white p-6 shadow-2xl sm:max-w-xl sm:rounded-3xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-stone-950/55 p-3 sm:items-center sm:p-4">
+      <section ref={dialogRef} tabIndex={-1} data-focus-fallback="#recipes-heading" role="dialog" aria-modal="true" aria-labelledby="recipe-form-title" className="max-h-[90vh] w-full overscroll-contain overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:max-w-xl sm:p-7">
         <h3 id="recipe-form-title" className="text-2xl font-bold text-stone-950">
           {recipe ? "Editar receta" : "Nueva receta"}
         </h3>
@@ -579,10 +597,10 @@ function RecipeFormActions({
 }) {
   return (
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-      <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 rounded-xl border border-stone-300 px-5 font-semibold text-stone-800">
+      <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 w-full rounded-xl border border-stone-300 px-5 font-semibold text-stone-800 sm:w-auto">
         Cancelar
       </button>
-      <button type="submit" disabled={busy} className="min-h-11 rounded-xl bg-amber-700 px-5 font-semibold text-white disabled:opacity-60">
+      <button type="submit" disabled={busy} className="min-h-11 w-full rounded-xl bg-amber-800 px-5 font-semibold text-white hover:bg-amber-900 disabled:opacity-60 sm:w-auto">
         {busy ? "Guardando..." : recipe ? "Guardar cambios" : "Crear receta"}
       </button>
     </div>
@@ -642,16 +660,17 @@ function DeleteConfirmation({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const dialogRef = useDialogFocus();
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-stone-950/50 p-0 sm:items-center sm:p-4">
-      <section role="alertdialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-description" className="w-full rounded-t-3xl bg-white p-6 shadow-2xl sm:max-w-md sm:rounded-3xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-stone-950/55 p-3 sm:items-center sm:p-4">
+      <section ref={dialogRef} tabIndex={-1} data-focus-fallback="#recipes-heading" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-description" className="w-full rounded-3xl bg-white p-5 shadow-2xl sm:max-w-md sm:p-7">
         <h3 id="delete-title" className="text-xl font-bold text-stone-950">Borrar receta</h3>
-        <p id="delete-description" className="mt-2 text-sm text-stone-600">
+        <p id="delete-description" className="mt-2 break-words text-sm text-stone-600">
           ¿Seguro que quieres borrar «{recipe.title}»? Esta acción no se puede deshacer.
         </p>
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 rounded-xl border border-stone-300 px-5 font-semibold text-stone-800">Cancelar</button>
-          <button type="button" onClick={onConfirm} disabled={busy} className="min-h-11 rounded-xl bg-red-700 px-5 font-semibold text-white disabled:opacity-60">
+          <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 w-full rounded-xl border border-stone-300 px-5 font-semibold text-stone-800 sm:w-auto">Cancelar</button>
+          <button type="button" onClick={onConfirm} disabled={busy} className="min-h-11 w-full rounded-xl bg-red-700 px-5 font-semibold text-white disabled:opacity-60 sm:w-auto">
             {busy ? "Borrando..." : "Sí, borrar"}
           </button>
         </div>

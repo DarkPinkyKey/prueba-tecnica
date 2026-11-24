@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { calculateRecipeAvailability } from "@/lib/recipe-availability";
 import { listPantryIngredients, listRecipes } from "@/lib/supabase";
@@ -79,13 +80,13 @@ export function CookingSuggestionsScreen({ userId }: { userId: string }) {
 function CookingSuggestionsForUser({ userId }: { userId: string }) {
   const state = useCookingSuggestions(userId);
   return (
-    <section aria-labelledby="cooking-heading" className="mt-8">
+    <section aria-labelledby="cooking-heading" className="mt-6 rounded-3xl border border-amber-200/70 bg-white/75 p-5 shadow-sm sm:mt-8 sm:p-7">
       <header className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">
             Ideas con lo que tienes
           </p>
-          <h2 id="cooking-heading" className="mt-1 text-3xl font-bold text-stone-950">
+          <h2 id="cooking-heading" className="mt-1 text-3xl font-bold tracking-tight text-stone-950">
             ¿Qué puedo cocinar?
           </h2>
           <p className="mt-2 text-sm text-stone-600">
@@ -96,7 +97,7 @@ function CookingSuggestionsForUser({ userId }: { userId: string }) {
           type="button"
           onClick={state.retry}
           disabled={state.loading}
-          className="min-h-11 rounded-xl border border-amber-700 px-5 py-2 font-semibold text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="min-h-11 w-full rounded-xl border border-amber-800 px-5 py-2 font-semibold text-amber-900 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {state.loading ? "Actualizando..." : "Actualizar sugerencias"}
         </button>
@@ -113,9 +114,25 @@ function SuggestionsContent({ state }: { state: SuggestionsState }) {
   if (state.error) return <SuggestionsError error={state.error} onRetry={state.retry} />;
   if (state.recipes.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-amber-300 bg-white/70 p-6 text-center text-stone-600">
-        Aún no tienes recetas para comparar con tu despensa.
-      </p>
+      <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 p-6 text-center">
+        <p className="text-stone-600">
+          Aún no tienes recetas para comparar con tu despensa.
+        </p>
+        <nav aria-label="Acciones para completar tus sugerencias" className="mt-4 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link
+            href="#recipes-heading"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-amber-800 px-5 py-2 font-semibold text-white transition hover:bg-amber-900"
+          >
+            Ir a Mis recetas
+          </Link>
+          <Link
+            href="#pantry-heading"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-800 px-5 py-2 font-semibold text-amber-900 transition hover:bg-amber-50"
+          >
+            Ir a Mi despensa
+          </Link>
+        </nav>
+      </div>
     );
   }
   return <SuggestionsList recipes={state.recipes} pantry={state.pantry} />;
@@ -160,7 +177,7 @@ function SuggestionCard({
 }) {
   const availability = calculateRecipeAvailability(recipe.ingredients, pantryNames);
   return (
-    <article className="rounded-2xl border border-amber-200/80 bg-white p-5 shadow-sm">
+    <article className="h-full min-w-0 rounded-2xl border border-amber-200/80 bg-white p-5 shadow-sm">
       <h3 className="break-words text-xl font-bold text-stone-950">{recipe.title}</h3>
       {availability === null ? (
         <p className="mt-4 rounded-lg bg-stone-100 px-3 py-2 text-sm text-stone-700">
@@ -194,7 +211,7 @@ function AvailabilityMeter({
         aria-valuenow={percentage}
         className="mt-2 h-3 overflow-hidden rounded-full bg-amber-100"
       >
-        <div className="h-full rounded-full bg-amber-700" style={{ width: `${percentage}%` }} />
+        <div className="h-full rounded-full bg-amber-800" style={{ width: `${percentage}%` }} />
       </div>
     </div>
   );
