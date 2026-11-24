@@ -13,6 +13,7 @@ import {
 } from "@/lib/supabase";
 import { RecipesScreen } from "@/components/recipes-screen";
 import { PantryScreen } from "@/components/pantry-screen";
+import { CookingSuggestionsScreen } from "@/components/cooking-suggestions-screen";
 
 type AuthMode = "login" | "register";
 type ErrorSetter = (message: string) => void;
@@ -195,6 +196,7 @@ function SignedInScreen({ session, error, loading, onSignOut }: SignedInScreenPr
         <ErrorMessage error={error} className="mt-5" />
         <PantryScreen userId={session.user.id} />
         <RecipesScreen userId={session.user.id} />
+        <CookingSuggestionsScreen userId={session.user.id} />
       </div>
     </main>
   );
