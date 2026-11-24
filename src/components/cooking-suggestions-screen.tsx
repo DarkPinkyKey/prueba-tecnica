@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { calculateRecipeAvailability } from "@/lib/recipe-availability";
 import { listPantryIngredients, listRecipes } from "@/lib/supabase";
+import { getOperationErrorMessage } from "@/lib/supabase-errors";
 import type { PantryIngredient } from "@/types/pantry";
 import type { Recipe } from "@/types/recipe";
 
@@ -62,13 +63,16 @@ async function loadSuggestions(
       throw new Error("La sesión ha cambiado.");
     }
     save({ userId, attempt, recipes, pantry, error: null });
-  } catch {
+  } catch (error) {
     save({
       userId,
       attempt,
       recipes: [],
       pantry: [],
-      error: "No se pudieron cargar tus recetas y despensa. Inténtalo de nuevo.",
+      error: getOperationErrorMessage(
+        error,
+        "No se pudieron cargar tus recetas y despensa. Inténtalo de nuevo.",
+      ),
     });
   }
 }

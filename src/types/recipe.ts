@@ -4,10 +4,10 @@ export type Recipe = {
   title: string;
   description: string | null;
   ingredients: string[];
-  instructions: string | null;
-  is_favorite: boolean;
+  instructions: string;
+  minutes: number | null;
+  favorite: boolean;
   created_at: string;
-  updated_at: string;
 };
 
 export type RecipeDraft = {
@@ -17,7 +17,7 @@ export type RecipeDraft = {
   instructions: string;
 };
 
-export type RecipeWrite = Omit<
+export type RecipeWrite = Pick<
   Recipe,
-  "id" | "user_id" | "created_at" | "updated_at"
+  "title" | "description" | "ingredients" | "instructions"
 >;

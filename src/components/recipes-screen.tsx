@@ -14,6 +14,7 @@ import {
   normalizeRecipeDraft,
   validateRecipeDraft,
 } from "@/lib/recipe-validation";
+import { getOperationErrorMessage } from "@/lib/supabase-errors";
 import { getRecipeView, type RecipeSnapshot } from "@/lib/recipe-state";
 import type { Recipe, RecipeDraft } from "@/types/recipe";
 
@@ -59,13 +60,16 @@ function loadRecipes(
     .then((recipes) => {
       if (active) setSnapshot({ userId, attempt, recipes, error: null });
     })
-    .catch(() => {
+    .catch((error: unknown) => {
       if (active) {
         setSnapshot({
           userId,
           attempt,
           recipes: [],
-          error: "No se pudieron cargar tus recetas. Inténtalo de nuevo.",
+          error: getOperationErrorMessage(
+            error,
+            "No se pudieron cargar tus recetas. Inténtalo de nuevo.",
+          ),
         });
       }
     });
@@ -167,8 +171,10 @@ async function saveRecipe(
         : [saved, ...current],
     );
     setFormOpen(false);
-  } catch {
-    state.setError("No se pudo guardar la receta. Inténtalo de nuevo.");
+  } catch (error) {
+    state.setError(
+      getOperationErrorMessage(error, "No se pudo guardar la receta."),
+    );
   } finally {
     setBusy(false);
     setBusyMessage(null);
@@ -190,8 +196,10 @@ async function removeRecipe(
     await deleteRecipe(recipe.id);
     state.setRecipes((current) => current.filter((item) => item.id !== recipe.id));
     setPendingDelete(null);
-  } catch {
-    state.setError("No se pudo borrar la receta. Inténtalo de nuevo.");
+  } catch (error) {
+    state.setError(
+      getOperationErrorMessage(error, "No se pudo borrar la receta."),
+    );
   } finally {
     setBusy(false);
     setBusyMessage(null);
@@ -212,8 +220,10 @@ async function changeFavorite(
     state.setRecipes((current) =>
       current.map((item) => (item.id === updated.id ? updated : item)),
     );
-  } catch {
-    state.setError("No se pudo actualizar el favorito. Inténtalo de nuevo.");
+  } catch (error) {
+    state.setError(
+      getOperationErrorMessage(error, "No se pudo actualizar el favorito."),
+    );
   } finally {
     setBusy(false);
     setBusyMessage(null);
@@ -411,7 +421,7 @@ function RecipeCard({
     <article className="h-full min-w-0 rounded-2xl border border-amber-200/80 bg-white p-5 shadow-sm">
       <RecipeCardHeading
         title={recipe.title}
-        favorite={recipe.is_favorite}
+        favorite={recipe.favorite}
         disabled={disabled}
         onFavorite={onFavorite}
       />
@@ -623,7 +633,7 @@ function TextField({
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-stone-800">{label}</label>
-      <input id={id} value={value} required={required} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-stone-300 px-3 outline-none focus:border-amber-700 focus:ring-4 focus:ring-amber-100" />
+      <input id={id} value={value} required={required} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-stone-300 bg-white px-3 text-stone-950 placeholder:text-stone-500 outline-none focus:border-amber-700 focus:ring-4 focus:ring-amber-100" />
     </div>
   );
 }
@@ -644,7 +654,7 @@ function TextAreaField({
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-stone-800">{label}</label>
-      <textarea id={id} value={value} required={required} rows={id === "recipe-ingredients" ? 4 : 3} onChange={(event) => onChange(event.target.value)} className="w-full rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-amber-700 focus:ring-4 focus:ring-amber-100" />
+      <textarea id={id} value={value} required={required} rows={id === "recipe-ingredients" ? 4 : 3} onChange={(event) => onChange(event.target.value)} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-stone-950 placeholder:text-stone-500 outline-none focus:border-amber-700 focus:ring-4 focus:ring-amber-100" />
     </div>
   );
 }

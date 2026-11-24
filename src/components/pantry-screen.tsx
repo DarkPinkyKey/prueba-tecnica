@@ -11,6 +11,7 @@ import {
 import { getPantryAddFeedback } from "@/lib/pantry-feedback";
 import { getPantryView, type PantrySnapshot } from "@/lib/pantry-state";
 import { validatePantryIngredient } from "@/lib/pantry-validation";
+import { getOperationErrorMessage } from "@/lib/supabase-errors";
 import type { PantryIngredient } from "@/types/pantry";
 
 type PantryState = {
@@ -33,7 +34,14 @@ function usePantry(userId: string): PantryState {
     };
     void listPantryIngredients(userId).then(
       (items) => saveResult(items, null),
-      () => saveResult([], "No se pudo cargar tu despensa. Inténtalo de nuevo."),
+      (error: unknown) =>
+        saveResult(
+          [],
+          getOperationErrorMessage(
+            error,
+            "No se pudo cargar tu despensa. Inténtalo de nuevo.",
+          ),
+        ),
     );
     return () => {
       active = false;
@@ -181,8 +189,10 @@ async function savePantryIngredient(
         : [...current, result.ingredient],
     );
     setIngredient("");
-  } catch {
-    state.setError("No se pudo añadir el ingrediente. Inténtalo de nuevo.");
+  } catch (error) {
+    state.setError(
+      getOperationErrorMessage(error, "No se pudo añadir el ingrediente."),
+    );
   } finally {
     setBusy(false);
   }
@@ -203,8 +213,10 @@ async function removePantryIngredient(
       current.filter((item) => item.id !== ingredient.id),
     );
     setPendingRemoval(null);
-  } catch {
-    state.setError("No se pudo quitar el ingrediente. Inténtalo de nuevo.");
+  } catch (error) {
+    state.setError(
+      getOperationErrorMessage(error, "No se pudo quitar el ingrediente."),
+    );
   } finally {
     setBusy(false);
   }
@@ -233,7 +245,7 @@ function PantryForm({
           onChange={(event) => onChange(event.target.value)}
           disabled={busy}
           maxLength={100}
-          className="min-h-11 w-full rounded-xl border border-stone-300 bg-white px-3 outline-none focus-visible:border-amber-700 focus-visible:ring-4 focus-visible:ring-amber-100 disabled:opacity-60"
+          className="min-h-11 w-full rounded-xl border border-stone-300 bg-white px-3 text-stone-950 placeholder:text-stone-500 outline-none focus-visible:border-amber-700 focus-visible:ring-4 focus-visible:ring-amber-100 disabled:opacity-60"
           placeholder="Por ejemplo, tomate"
         />
       </div>

@@ -89,7 +89,7 @@ function createAuthMock(
     })),
     getUser: vi.fn(async () => ({
       data: { user: { id: "user-1" } as { id: string } | null },
-      error: null as { message: string } | null,
+      error: null as { message: string; code?: string } | null,
     })),
   };
 }
@@ -116,16 +116,23 @@ const pantryIngredient: PantryIngredient = {
   ingredient: "Tomate",
 };
 
+const pantryRow = {
+  id: pantryIngredient.id,
+  user_id: pantryIngredient.user_id,
+  name: pantryIngredient.ingredient,
+  created_at: "2026-01-01",
+};
+
 const recipe: Recipe = {
   id: "recipe-1",
   user_id: "user-1",
   title: "Sopa",
   description: null,
   ingredients: ["agua"],
-  instructions: null,
-  is_favorite: false,
+  instructions: "Hervir.",
+  minutes: 25,
+  favorite: false,
   created_at: "2026-01-01",
-  updated_at: "2026-01-01",
 };
 
 const draft: RecipeDraft = {
@@ -246,7 +253,7 @@ describe("Supabase pantry operations", () => {
 
 function registerListPantryIngredientsTest() {
   it("lists only the authenticated user's ingredients and handles errors", async () => {
-    queueQueryResults({ data: [pantryIngredient], error: null });
+    queueQueryResults({ data: [pantryRow], error: null });
     await expect(listPantryIngredients()).resolves.toEqual([pantryIngredient]);
     expect(mocks.from).toHaveBeenCalledWith("pantry");
     expect(mocks.query.eq).toHaveBeenCalledWith("user_id", "user-1");
@@ -263,26 +270,31 @@ function registerListPantryIngredientsTest() {
     );
     expect(mocks.from).not.toHaveBeenCalled();
 
-    queueQueryResults({ data: null, error: { message: "pantry read failed" } });
-    await expect(listPantryIngredients()).rejects.toThrow("pantry read failed");
+    queueQueryResults({
+      data: null,
+      error: { code: "42703", message: "pantry read failed" },
+    });
+    await expect(listPantryIngredients()).rejects.toThrow(
+      "Error de Supabase [42703]: pantry read failed",
+    );
   });
 }
 
 function registerAddPantryIngredientTest() {
   it("normalizes new ingredients and avoids case-insensitive duplicates", async () => {
-    const saved = { ...pantryIngredient, ingredient: "tomate cherry" };
+    const saved = { ...pantryRow, name: "tomate cherry" };
     queueQueryResults({ data: [], error: null }, { data: saved, error: null });
     await expect(addPantryIngredient("  tomate   cherry ")).resolves.toEqual({
       status: "added",
-      ingredient: saved,
+      ingredient: { ...pantryIngredient, ingredient: "tomate cherry" },
     });
     expect(mocks.query.insert).toHaveBeenCalledWith({
-      ingredient: "tomate cherry",
+      name: "tomate cherry",
       user_id: "user-1",
     });
     expect(mocks.query.eq).toHaveBeenCalledWith("user_id", "user-1");
 
-    queueQueryResults({ data: [pantryIngredient], error: null });
+    queueQueryResults({ data: [pantryRow], error: null });
     await expect(addPantryIngredient(" tomate ")).resolves.toEqual({
       status: "already-exists",
     });
@@ -292,7 +304,7 @@ function registerAddPantryIngredientTest() {
 
 function registerPantryWhitespaceDuplicateTest() {
   it("recognizes existing ingredients with collapsed internal whitespace", async () => {
-    const existing = { ...pantryIngredient, ingredient: "TOMATE  Cherry" };
+    const existing = { ...pantryRow, name: "TOMATE  Cherry" };
     queueQueryResults({ data: [existing], error: null });
 
     await expect(addPantryIngredient("tomate   cherry")).resolves.toEqual({
@@ -367,6 +379,14 @@ function registerListRecipesTest() {
     setAuthenticatedUser(null);
     await expect(listRecipes()).rejects.toThrow("Se requiere una sesión activa.");
 
+    mocks.auth.getUser.mockImplementation(async () => ({
+      data: { user: null },
+      error: { code: "500", message: "user lookup failed" },
+    }));
+    await expect(listRecipes()).rejects.toThrow(
+      "Error de Supabase [500]: user lookup failed",
+    );
+
     setAuthenticatedUser({ id: "user-1" });
     queueQueryResults({ data: null, error: { message: "list failed" } });
     await expect(listRecipes()).rejects.toThrow("list failed");
@@ -381,8 +401,8 @@ function registerCreateRecipeTest() {
       title: "Sopa",
       description: null,
       ingredients: ["agua"],
-      instructions: null,
-      is_favorite: false,
+      instructions: "",
+      favorite: false,
       user_id: "user-1",
     });
 
@@ -395,6 +415,12 @@ function registerUpdateRecipeTest() {
   it("updates recipes and reports update errors", async () => {
     queueQueryResults({ data: recipe, error: null });
     await expect(updateRecipe("recipe-1", draft)).resolves.toEqual(recipe);
+    expect(mocks.query.update).toHaveBeenCalledWith({
+      title: "Sopa",
+      description: null,
+      ingredients: ["agua"],
+      instructions: "",
+    });
 
     queueQueryResults({ data: null, error: { message: "update failed" } });
     await expect(updateRecipe("recipe-1", draft)).rejects.toThrow("update failed");
@@ -414,13 +440,15 @@ function registerDeleteRecipeTest() {
 function registerToggleFavoriteTest() {
   it("toggles favorites and handles read and update errors", async () => {
     queueQueryResults(
-      { data: { is_favorite: false }, error: null },
-      { data: { ...recipe, is_favorite: true }, error: null },
+      { data: { favorite: false }, error: null },
+      { data: { ...recipe, favorite: true }, error: null },
     );
     await expect(toggleRecipeFavorite("recipe-1")).resolves.toEqual({
       ...recipe,
-      is_favorite: true,
+      favorite: true,
     });
+    expect(mocks.query.select).toHaveBeenCalledWith("favorite");
+    expect(mocks.query.update).toHaveBeenCalledWith({ favorite: true });
 
     queueQueryResults({ data: null, error: { message: "favorite read failed" } });
     await expect(toggleRecipeFavorite("recipe-1")).rejects.toThrow(
@@ -428,7 +456,7 @@ function registerToggleFavoriteTest() {
     );
 
     queueQueryResults(
-      { data: { is_favorite: false }, error: null },
+      { data: { favorite: false }, error: null },
       { data: null, error: { message: "favorite update failed" } },
     );
     await expect(toggleRecipeFavorite("recipe-1")).rejects.toThrow(
