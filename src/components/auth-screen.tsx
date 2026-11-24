@@ -4,12 +4,18 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { validateAuthCredentials } from "@/lib/auth-validation";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import {
+  authenticateUser,
+  getCurrentSession,
+  isSupabaseConfigured,
+  signOutCurrentUser,
+  subscribeToAuthChanges,
+} from "@/lib/supabase";
+import { RecipesScreen } from "@/components/recipes-screen";
 
 type AuthMode = "login" | "register";
 type ErrorSetter = (message: string) => void;
-type SessionSubscription =
-  ReturnType<typeof supabase.auth.onAuthStateChange>["data"]["subscription"];
+type SessionSubscription = ReturnType<typeof subscribeToAuthChanges>;
 
 function useAuthSession() {
   const [session, setSession] = useState<Session | null>(null);
@@ -35,7 +41,7 @@ function listenForAuthChanges(
   setError: ErrorSetter,
 ): SessionSubscription | null {
   try {
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    return subscribeToAuthChanges((nextSession) => {
       if (!isMounted()) return;
       try {
         setSession(nextSession);
@@ -43,7 +49,6 @@ function listenForAuthChanges(
         setError("No se pudo actualizar el estado de la sesión.");
       }
     });
-    return data.subscription;
   } catch {
     void Promise.resolve().then(() => {
       if (isMounted()) setError("No se pudo escuchar los cambios de sesión.");
@@ -59,10 +64,9 @@ async function loadCurrentSession(
   setInitializing: (initializing: boolean) => void,
 ): Promise<void> {
   try {
-    const { data, error } = await supabase.auth.getSession();
+    const session = await getCurrentSession();
     if (!isMounted()) return;
-    if (error) setError("No se pudo comprobar el estado de la sesión.");
-    else setSession(data.session);
+    setSession(session);
   } catch {
     if (isMounted()) setError("No se pudo comprobar el estado de la sesión.");
   } finally {
@@ -88,12 +92,7 @@ async function submitCredentials(
 
   setLoading(true);
   try {
-    const credentials = { email: email.trim(), password };
-    const result =
-      mode === "login"
-        ? await supabase.auth.signInWithPassword(credentials)
-        : await supabase.auth.signUp(credentials);
-    if (result.error) setError(authFailureMessage(mode));
+    await authenticateUser(mode, email.trim(), password);
   } catch {
     setError(authFailureMessage(mode));
   } finally {
@@ -114,8 +113,7 @@ async function signOut(
   setLoading(true);
   setError(null);
   try {
-    const { error } = await supabase.auth.signOut();
-    if (error) setError("No se pudo cerrar la sesión.");
+    await signOutCurrentUser();
   } catch {
     setError("No se pudo cerrar la sesión.");
   } finally {
@@ -181,16 +179,21 @@ type SignedInScreenProps = {
 
 function SignedInScreen({ session, error, loading, onSignOut }: SignedInScreenProps) {
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
-      <section className="w-full max-w-md rounded-3xl border border-amber-200/70 bg-white p-6 shadow-xl shadow-amber-950/10 sm:p-8">
-        <BrandName />
-        <h1 className="mt-3 text-3xl font-bold text-stone-950">Sesión iniciada</h1>
-        <p className="mt-3 break-all text-stone-600">
-          Has iniciado sesión como <strong>{session.user.email}</strong>.
-        </p>
+    <main className="min-h-screen px-4 py-8 sm:px-8 sm:py-12">
+      <div className="mx-auto w-full max-w-5xl">
+        <header className="flex flex-col gap-5 rounded-3xl border border-amber-200/70 bg-white p-6 shadow-xl shadow-amber-950/10 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div>
+            <BrandName />
+            <h1 className="mt-3 text-3xl font-bold text-stone-950">Sesión iniciada</h1>
+            <p className="mt-2 break-all text-stone-600">
+              Has iniciado sesión como <strong>{session.user.email}</strong>.
+            </p>
+          </div>
+          <SignOutButton loading={loading} onClick={onSignOut} />
+        </header>
         <ErrorMessage error={error} className="mt-5" />
-        <SignOutButton loading={loading} onClick={onSignOut} />
-      </section>
+        <RecipesScreen userId={session.user.id} />
+      </div>
     </main>
   );
 }
@@ -371,7 +374,7 @@ function SignOutButton({ loading, onClick }: { loading: boolean; onClick: () => 
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="mt-6 h-12 w-full rounded-xl bg-stone-900 px-5 font-semibold text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
+      className="mt-6 h-12 w-full rounded-xl bg-stone-900 px-5 font-semibold text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60 sm:mt-0 sm:w-auto"
     >
       {loading ? "Cerrando sesión..." : "Cerrar sesión"}
     </button>
