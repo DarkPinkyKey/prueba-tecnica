@@ -13,6 +13,7 @@ import {
   normalizeRecipeDraft,
   validateRecipeDraft,
 } from "@/lib/recipe-validation";
+import { getRecipeView, type RecipeSnapshot } from "@/lib/recipe-state";
 import type { Recipe, RecipeDraft } from "@/types/recipe";
 
 type RecipeState = {
@@ -25,42 +26,89 @@ type RecipeState = {
 };
 
 function useRecipes(userId: string): RecipeState {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [completedAttempt, setCompletedAttempt] = useState(-1);
-  const [error, setError] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<RecipeSnapshot | null>(null);
   const [attempt, setAttempt] = useState(0);
 
-  useEffect(() => {
-    let active = true;
-    void listRecipes()
-      .then((items) => {
-        if (active) setRecipes(items);
-      })
-      .catch(() => {
-        if (active) setError("No se pudieron cargar tus recetas. Inténtalo de nuevo.");
-      })
-      .finally(() => {
-        if (active) setCompletedAttempt(attempt);
-      });
-    return () => {
-      active = false;
-    };
-  }, [userId, attempt]);
-
+  useEffect(
+    () => loadRecipes(userId, attempt, setSnapshot),
+    [userId, attempt],
+  );
+  const view = getRecipeView(snapshot, userId, attempt);
   return {
-    recipes,
-    setRecipes,
-    loading: completedAttempt !== attempt,
-    error,
-    setError,
-    retry: () => {
-      setError(null);
-      setAttempt((current) => current + 1);
-    },
+    ...view,
+    setRecipes: (update) =>
+      setSnapshot((current) =>
+        updateRecipesSnapshot(current, userId, attempt, update),
+      ),
+    setError: (error) =>
+      setSnapshot((current) =>
+        updateRecipeError(current, userId, attempt, error),
+      ),
+    retry: () => setAttempt((current) => current + 1),
   };
 }
 
+function loadRecipes(
+  userId: string,
+  attempt: number,
+  setSnapshot: Dispatch<SetStateAction<RecipeSnapshot | null>>,
+) {
+  let active = true;
+  void listRecipes()
+    .then((recipes) => {
+      if (active) setSnapshot({ userId, attempt, recipes, error: null });
+    })
+    .catch(() => {
+      if (active) {
+        setSnapshot({
+          userId,
+          attempt,
+          recipes: [],
+          error: "No se pudieron cargar tus recetas. Inténtalo de nuevo.",
+        });
+      }
+    });
+  return () => {
+    active = false;
+  };
+}
+
+function updateRecipesSnapshot(
+  snapshot: RecipeSnapshot | null,
+  userId: string,
+  attempt: number,
+  update: SetStateAction<Recipe[]>,
+): RecipeSnapshot | null {
+  if (!matchesRecipeRequest(snapshot, userId, attempt)) return snapshot;
+  const recipes =
+    typeof update === "function" ? update(snapshot.recipes) : update;
+  return { ...snapshot, recipes };
+}
+
+function updateRecipeError(
+  snapshot: RecipeSnapshot | null,
+  userId: string,
+  attempt: number,
+  error: string | null,
+): RecipeSnapshot | null {
+  return matchesRecipeRequest(snapshot, userId, attempt)
+    ? { ...snapshot, error }
+    : snapshot;
+}
+
+function matchesRecipeRequest(
+  snapshot: RecipeSnapshot | null,
+  userId: string,
+  attempt: number,
+): snapshot is RecipeSnapshot {
+  return snapshot?.userId === userId && snapshot.attempt === attempt;
+}
+
 export function RecipesScreen({ userId }: { userId: string }) {
+  return <RecipesScreenForUser key={userId} userId={userId} />;
+}
+
+function RecipesScreenForUser({ userId }: { userId: string }) {
   const state = useRecipes(userId);
   const [formRecipe, setFormRecipe] = useState<Recipe | null>(null);
   const [formOpen, setFormOpen] = useState(false);

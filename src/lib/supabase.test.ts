@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { PantryIngredient } from "@/types/pantry";
 import type { Recipe, RecipeDraft } from "@/types/recipe";
 import {
+  addPantryIngredient,
   authenticateUser,
   createRecipe,
+  deletePantryIngredient,
   deleteRecipe,
   getCurrentSession,
+  listPantryIngredients,
   listRecipes,
   signOutCurrentUser,
   subscribeToAuthChanges,
@@ -14,7 +18,7 @@ import {
 
 type QueryResult = {
   data: unknown;
-  error: { message: string } | null;
+  error: { message: string; code?: string } | null;
 };
 
 const mocks = vi.hoisted(() => {
@@ -26,6 +30,7 @@ const mocks = vi.hoisted(() => {
   return {
     queryResults,
     query,
+    from: vi.fn(() => query),
     authCallbacks,
     subscription,
     auth: createAuthMock(authCallbacks, subscription),
@@ -101,9 +106,15 @@ function registerAuthCallback(
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
     auth: mocks.auth,
-    from: vi.fn(() => mocks.query),
+    from: mocks.from,
   }),
 }));
+
+const pantryIngredient: PantryIngredient = {
+  id: "pantry-1",
+  user_id: "user-1",
+  ingredient: "Tomate",
+};
 
 const recipe: Recipe = {
   id: "recipe-1",
@@ -223,6 +234,130 @@ describe("Supabase recipe operations", () => {
   registerDeleteRecipeTest();
   registerToggleFavoriteTest();
 });
+
+describe("Supabase pantry operations", () => {
+  registerListPantryIngredientsTest();
+  registerAddPantryIngredientTest();
+  registerPantryWhitespaceDuplicateTest();
+  registerPantryConflictTest();
+  registerPantryInsertErrorsTest();
+  registerDeletePantryIngredientTest();
+});
+
+function registerListPantryIngredientsTest() {
+  it("lists only the authenticated user's ingredients and handles errors", async () => {
+    queueQueryResults({ data: [pantryIngredient], error: null });
+    await expect(listPantryIngredients()).resolves.toEqual([pantryIngredient]);
+    expect(mocks.from).toHaveBeenCalledWith("pantry");
+    expect(mocks.query.eq).toHaveBeenCalledWith("user_id", "user-1");
+
+    setAuthenticatedUser(null);
+    await expect(listPantryIngredients()).rejects.toThrow(
+      "Se requiere una sesión activa.",
+    );
+
+    setAuthenticatedUser({ id: "user-1" });
+    mocks.from.mockClear();
+    await expect(listPantryIngredients("user-2")).rejects.toThrow(
+      "La sesión ha cambiado.",
+    );
+    expect(mocks.from).not.toHaveBeenCalled();
+
+    queueQueryResults({ data: null, error: { message: "pantry read failed" } });
+    await expect(listPantryIngredients()).rejects.toThrow("pantry read failed");
+  });
+}
+
+function registerAddPantryIngredientTest() {
+  it("normalizes new ingredients and avoids case-insensitive duplicates", async () => {
+    const saved = { ...pantryIngredient, ingredient: "tomate cherry" };
+    queueQueryResults({ data: [], error: null }, { data: saved, error: null });
+    await expect(addPantryIngredient("  tomate   cherry ")).resolves.toEqual({
+      status: "added",
+      ingredient: saved,
+    });
+    expect(mocks.query.insert).toHaveBeenCalledWith({
+      ingredient: "tomate cherry",
+      user_id: "user-1",
+    });
+    expect(mocks.query.eq).toHaveBeenCalledWith("user_id", "user-1");
+
+    queueQueryResults({ data: [pantryIngredient], error: null });
+    await expect(addPantryIngredient(" tomate ")).resolves.toEqual({
+      status: "already-exists",
+    });
+    expect(mocks.query.insert).toHaveBeenCalledOnce();
+  });
+}
+
+function registerPantryWhitespaceDuplicateTest() {
+  it("recognizes existing ingredients with collapsed internal whitespace", async () => {
+    const existing = { ...pantryIngredient, ingredient: "TOMATE  Cherry" };
+    queueQueryResults({ data: [existing], error: null });
+
+    await expect(addPantryIngredient("tomate   cherry")).resolves.toEqual({
+      status: "already-exists",
+    });
+    expect(mocks.query.insert).not.toHaveBeenCalled();
+  });
+}
+
+function registerPantryConflictTest() {
+  it("reports a unique-conflict race as an explicit duplicate result", async () => {
+    queueQueryResults(
+      { data: [], error: null },
+      { data: null, error: { message: "duplicate key", code: "23505" } },
+    );
+
+    await expect(addPantryIngredient("Tomate")).resolves.toEqual({
+      status: "already-exists",
+    });
+  });
+}
+
+function registerPantryInsertErrorsTest() {
+  it("rejects empty names and propagates pantry insert and lookup errors", async () => {
+    await expect(addPantryIngredient("  ")).rejects.toThrow(
+      "Escribe el nombre de un ingrediente.",
+    );
+    setAuthenticatedUser(null);
+    await expect(addPantryIngredient("Pera")).rejects.toThrow(
+      "Se requiere una sesión activa.",
+    );
+    setAuthenticatedUser({ id: "user-1" });
+    queueQueryResults({ data: null, error: { message: "pantry lookup failed" } });
+    await expect(addPantryIngredient("Pera")).rejects.toThrow(
+      "pantry lookup failed",
+    );
+
+    queueQueryResults(
+      { data: [], error: null },
+      { data: null, error: { message: "pantry insert failed" } },
+    );
+    await expect(addPantryIngredient("Pera")).rejects.toThrow(
+      "pantry insert failed",
+    );
+  });
+}
+
+function registerDeletePantryIngredientTest() {
+  it("removes an ingredient within the user's scope and reports failures", async () => {
+    queueQueryResults({ data: { id: pantryIngredient.id }, error: null });
+    await expect(deletePantryIngredient(pantryIngredient.id)).resolves.toBeUndefined();
+    expect(mocks.query.eq).toHaveBeenCalledWith("id", pantryIngredient.id);
+    expect(mocks.query.eq).toHaveBeenCalledWith("user_id", "user-1");
+
+    queueQueryResults({ data: null, error: { message: "pantry delete failed" } });
+    await expect(deletePantryIngredient(pantryIngredient.id)).rejects.toThrow(
+      "pantry delete failed",
+    );
+
+    setAuthenticatedUser(null);
+    await expect(deletePantryIngredient(pantryIngredient.id)).rejects.toThrow(
+      "Se requiere una sesión activa.",
+    );
+  });
+}
 
 function registerListRecipesTest() {
   it("lists recipes and rejects unauthenticated sessions or query errors", async () => {

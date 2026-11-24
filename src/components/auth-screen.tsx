@@ -12,6 +12,7 @@ import {
   subscribeToAuthChanges,
 } from "@/lib/supabase";
 import { RecipesScreen } from "@/components/recipes-screen";
+import { PantryScreen } from "@/components/pantry-screen";
 
 type AuthMode = "login" | "register";
 type ErrorSetter = (message: string) => void;
@@ -192,6 +193,7 @@ function SignedInScreen({ session, error, loading, onSignOut }: SignedInScreenPr
           <SignOutButton loading={loading} onClick={onSignOut} />
         </header>
         <ErrorMessage error={error} className="mt-5" />
+        <PantryScreen userId={session.user.id} />
         <RecipesScreen userId={session.user.id} />
       </div>
     </main>

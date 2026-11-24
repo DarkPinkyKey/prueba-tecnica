@@ -1,6 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Session } from "@supabase/supabase-js";
+import type { PantryIngredient } from "@/types/pantry";
 import type { Recipe, RecipeDraft, RecipeWrite } from "@/types/recipe";
+import {
+  normalizePantryIngredient,
+  validatePantryIngredient,
+} from "./pantry-validation";
 
 type RecipeTable = {
   Row: Recipe;
@@ -13,9 +18,17 @@ type RecipeTable = {
   Relationships: [];
 };
 
+type PantryTable = {
+  Row: PantryIngredient;
+  Insert: Omit<PantryIngredient, "id"> & { id?: string };
+  Update: Partial<PantryTable["Insert"]>;
+  Relationships: [];
+};
+
 type Database = {
   public: {
     Tables: {
+      pantry: PantryTable;
       recipes: RecipeTable;
     };
     Views: Record<string, never>;
@@ -24,6 +37,10 @@ type Database = {
     CompositeTypes: Record<string, never>;
   };
 };
+
+export type AddPantryIngredientResult =
+  | { status: "added"; ingredient: PantryIngredient }
+  | { status: "already-exists" };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -130,6 +147,61 @@ export async function deleteRecipe(recipeId: string): Promise<void> {
     .delete()
     .eq("id", recipeId)
     .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+}
+
+export async function listPantryIngredients(
+  expectedUserId?: string,
+): Promise<PantryIngredient[]> {
+  const authenticatedUserId = await getAuthenticatedUserId();
+  if (expectedUserId !== undefined && expectedUserId !== authenticatedUserId) {
+    throw new Error("La sesión ha cambiado. Vuelve a cargar tu despensa.");
+  }
+  const userId = expectedUserId ?? authenticatedUserId;
+  const { data, error } = await supabase
+    .from("pantry")
+    .select("*")
+    .eq("user_id", userId)
+    .order("ingredient", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function addPantryIngredient(
+  ingredient: string,
+): Promise<AddPantryIngredientResult> {
+  const validationError = validatePantryIngredient(ingredient);
+  if (validationError) throw new Error(validationError);
+  const userId = await getAuthenticatedUserId();
+  const normalized = normalizePantryIngredient(ingredient);
+  const { data: current, error: readError } = await supabase
+    .from("pantry")
+    .select("*")
+    .eq("user_id", userId);
+  if (readError) throw new Error(readError.message);
+  const duplicate = current.find(
+    (item) => normalizePantryIngredient(item.ingredient) === normalized,
+  );
+  if (duplicate) return { status: "already-exists" };
+  const { data, error } = await supabase
+    .from("pantry")
+    .insert({ ingredient: normalized, user_id: userId })
+    .select("*")
+    .single();
+  if (error?.code === "23505") return { status: "already-exists" };
+  if (error) throw new Error(error.message);
+  return { status: "added", ingredient: data };
+}
+
+export async function deletePantryIngredient(ingredientId: string): Promise<void> {
+  const userId = await getAuthenticatedUserId();
+  const { error } = await supabase
+    .from("pantry")
+    .delete()
+    .eq("id", ingredientId)
+    .eq("user_id", userId)
+    .select("id")
+    .single();
   if (error) throw new Error(error.message);
 }
 
